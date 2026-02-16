@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D立方体 · 一键材质/透明背景/专业录制</title>
+    <title>3D Cube · Material & Recording</title> <!-- 初始英文，JS会根据IP/浏览器自动切换 -->
     <style>
         * {
             margin: 0;
@@ -315,9 +315,10 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // --- 语言包 ---
+        // --- 语言包 (包含标题) ---
         const i18n = {
             en: {
+                title: '3D Cube · Material & Recording',
                 recordingParams: '⚙️ Recording Parameters',
                 fps: 'FPS',
                 duration: 'Dur (s)',
@@ -336,6 +337,7 @@
                 faceNames: ['Front', 'Back', 'Left', 'Right', 'Top', 'Bottom']
             },
             zh: {
+                title: '3D立方体 · 一键材质/透明背景/专业录制',
                 recordingParams: '⚙️ 录制参数',
                 fps: '帧率',
                 duration: '时长(s)',
@@ -355,33 +357,32 @@
             }
         };
 
-        let currentLang = 'en'; // 默认英文
+        let currentLang = 'en';
 
         function setLanguage(lang) {
             currentLang = lang;
+            // 更新页面标题
+            document.title = i18n[lang].title;
+            // 更新所有 data-i18n 元素
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.getAttribute('data-i18n');
                 if (i18n[lang][key]) {
-                    // 如果是普通文本元素
                     el.innerText = i18n[lang][key];
-                } else {
-                    // 处理特殊的 faceNames 嵌入的情况（动态部分单独处理）
                 }
             });
-            // 更新六面卡片上的名称（每个卡片内的 faceNames[i] 需要更新）
+            // 更新六面卡片上的名称
             document.querySelectorAll('.face-card .face-name').forEach((el, index) => {
                 if (el && index < 6) {
                     el.innerText = i18n[lang].faceNames[index];
                 }
             });
-            // 更新上传/恢复按钮文本（它们也有 data-i18n，上面已经统一处理，但为了确保，也可以单独处理）
-            // 注意：上传/恢复按钮的data-i18n分别设为'upload'和'clear'，已在上面循环中更新
+            // 更新上传/恢复按钮文本 (它们也有 data-i18n 属性，已在上面循环中更新)
             // 切换按钮激活样式
             document.getElementById('langZhBtn').classList.toggle('active', lang === 'zh');
             document.getElementById('langEnBtn').classList.toggle('active', lang === 'en');
         }
 
-        // --- 初始化场景 ---
+        // --- 初始化场景 (同之前) ---
         const canvas = document.getElementById('threeCanvas');
         const renderer = new THREE.WebGLRenderer({ 
             canvas, 
@@ -400,6 +401,7 @@
         camera.position.set(2.5, 1.8, 3.5);
         camera.lookAt(0, 0, 0);
 
+        // 灯光
         const ambient = new THREE.AmbientLight(0x40486a);
         scene.add(ambient);
         const light1 = new THREE.PointLight(0xffeedd, 1.2);
@@ -422,12 +424,14 @@
         const stars = new THREE.Points(starsGeo, starsMat);
         scene.add(stars);
 
+        // 立方体材质
         const initColors = [0xff5e5e, 0x5f8cff, 0x5eff8c, 0xffcd5e, 0xca7dff, 0xff8fc7];
         const materials = initColors.map(hex => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.3, metalness: 0.1 }));
         const geometry = new THREE.BoxGeometry(1.8, 1.8, 1.8);
         const cube = new THREE.Mesh(geometry, materials);
         scene.add(cube);
 
+        // 转速控制
         let speed = 0.008;
         const speedSlider = document.getElementById('speedSlider');
         const speedSpan = document.getElementById('speedValue');
@@ -436,6 +440,7 @@
             speedSpan.textContent = speed.toFixed(4);
         });
 
+        // 背景色控制
         const bgPicker = document.getElementById('bgColorPicker');
         bgPicker.addEventListener('input', e => {
             const val = e.target.value;
@@ -443,6 +448,7 @@
             renderer.setClearColor(parseInt(val.slice(1), 16), transparent ? 0 : 1);
         });
 
+        // 透明背景复选框
         const transparentCheck = document.getElementById('transparentBgCheckbox');
         transparentCheck.addEventListener('change', e => {
             const checked = e.target.checked;
@@ -452,6 +458,7 @@
             stars.visible = !checked;
         });
 
+        // 动画
         function animate() {
             requestAnimationFrame(animate);
             cube.rotation.y += speed;
@@ -460,6 +467,7 @@
         }
         animate();
 
+        // 窗口自适应
         window.addEventListener('resize', () => {
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
@@ -471,7 +479,6 @@
         // --- 构建六面UI ---
         const facePanel = document.getElementById('facePanel');
         const previewImgs = [];
-        const faceNames = ['前', '后', '左', '右', '上', '下']; // 占位，后续根据语言更新
         const fileInputs = [];
 
         for (let i = 0; i < 6; i++) {
@@ -484,7 +491,7 @@
             labelDiv.style.borderRadius = '20px';
             labelDiv.style.padding = '4px';
             labelDiv.className = 'face-name'; // 用于更新名称
-            labelDiv.innerText = i18n[currentLang].faceNames[i]; // 初始文本
+            labelDiv.innerText = i18n[currentLang].faceNames[i];
             card.appendChild(labelDiv);
 
             const previewDiv = document.createElement('div');
@@ -657,6 +664,7 @@
             });
         }
 
+        // 绑定录制按钮
         document.getElementById('recordWebmBtn').addEventListener('click', () => startRecording('video/webm;codecs=vp9', 'webm'));
         document.getElementById('recordMp4Btn').addEventListener('click', () => startRecording('video/webm;codecs=vp9', 'mp4'));
         document.getElementById('recordGifBtn').addEventListener('click', startGifRecording);
@@ -665,24 +673,20 @@
         document.getElementById('langZhBtn').addEventListener('click', () => setLanguage('zh'));
         document.getElementById('langEnBtn').addEventListener('click', () => setLanguage('en'));
 
-        // --- IP检测：判断是否在中国，自动切换为中文 ---
+        // --- IP检测：判断是否在中国，自动切换为中文，否则英文 ---
         fetch('https://ipapi.co/json/')
             .then(res => res.json())
             .then(data => {
                 if (data.country_code === 'CN') {
                     setLanguage('zh');
                 } else {
-                    setLanguage('en'); // 默认英文
+                    setLanguage('en');
                 }
             })
             .catch(() => {
-                // 如果API调用失败，根据浏览器语言降级
+                // 降级：根据浏览器语言
                 const browserLang = navigator.language || navigator.userLanguage;
-                if (browserLang.startsWith('zh')) {
-                    setLanguage('zh');
-                } else {
-                    setLanguage('en');
-                }
+                setLanguage(browserLang.startsWith('zh') ? 'zh' : 'en');
             });
     </script>
 </body>
