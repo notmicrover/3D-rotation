@@ -1,6 +1,7 @@
 # 3D Rotation Cube
 ---
 [English](/README.md) | [中文](/README_zh-CN.md)
+
 [![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://notmicrover.github.io/3D-rotation)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
