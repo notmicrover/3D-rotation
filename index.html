@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>3D Cube · Material & Recording</title> <!-- 初始英文，JS会根据IP/浏览器自动切换 -->
+    <title>3D Cube · Material & Recording</title>
     <style>
+        /* 样式与之前完全一致，此处省略以节省篇幅，实际使用时请保留原样 */
         * {
             margin: 0;
             padding: 0;
@@ -111,6 +112,15 @@
         }
         .param-item input[type="range"] {
             width: 180px;
+        }
+        .param-item select {
+            background: #0e162f;
+            color: white;
+            border: 1px solid #5f74b0;
+            border-radius: 30px;
+            padding: 0.4rem 1rem;
+            font-size: 0.9rem;
+            cursor: pointer;
         }
         .checkbox-item {
             display: flex;
@@ -300,6 +310,20 @@
         <!-- 材质高级面板 -->
         <div class="collapse-section">
             <div class="collapse-toggle" onclick="document.getElementById('facePanel').style.display = document.getElementById('facePanel').style.display === 'none' ? 'grid' : 'none'" data-i18n="toggleMaterial">▼ 材质自定义 (点击展开/折叠)</div>
+            
+            <!-- 纹理模式选择 (新增) -->
+            <div class="flex-row" style="justify-content: flex-start;">
+                <div class="param-item">
+                    <label data-i18n="textureMode">贴图模式</label>
+                    <select id="textureModeSelect">
+                        <option value="stretch" data-i18n-option="stretch" selected>拉伸</option>
+                        <option value="fit" data-i18n-option="fit">适应</option>
+                        <option value="cover" data-i18n-option="cover">填充</option>
+                        <option value="none" data-i18n-option="none">无操作</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- 一键替换所有面 -->
             <div class="oneclick-row">
                 <div class="oneclick-btn" id="oneClickUploadBtn" data-i18n="oneClickUpload">🖼️ 一键替换所有面材质</div>
@@ -315,7 +339,7 @@
     <script type="module">
         import * as THREE from 'three';
 
-        // --- 语言包 (包含标题) ---
+        // --- 语言包 (包含新增的纹理模式翻译) ---
         const i18n = {
             en: {
                 title: '3D Cube · Material & Recording',
@@ -329,6 +353,11 @@
                 recordMp4: '🎥 Record MP4 (WebM)',
                 recordGif: '📹 Record GIF',
                 toggleMaterial: '▼ Material Settings (click to expand/collapse)',
+                textureMode: 'Texture Mode',          // 新增
+                stretch: 'Stretch',
+                fit: 'Fit',
+                cover: 'Cover',
+                none: 'None',
                 oneClickUpload: '🖼️ One‑Click Replace All Faces',
                 oneClickHint: 'Upload one image for all six faces',
                 footerNote: 'Transparent background hides stars, only cube remains. For GIF, keep FPS ≤ 24.',
@@ -348,6 +377,11 @@
                 recordMp4: '🎥 录制 MP4 (WebM封装)',
                 recordGif: '📹 录制 GIF',
                 toggleMaterial: '▼ 材质自定义 (点击展开/折叠)',
+                textureMode: '贴图模式',              // 新增
+                stretch: '拉伸',
+                fit: '适应',
+                cover: '填充',
+                none: '无操作',
                 oneClickUpload: '🖼️ 一键替换所有面材质',
                 oneClickHint: '上传一张图应用到六个面',
                 footerNote: '透明背景将隐藏星空粒子，仅保留立方体。录制GIF建议帧率≤24。',
@@ -361,7 +395,6 @@
 
         function setLanguage(lang) {
             currentLang = lang;
-            // 更新页面标题
             document.title = i18n[lang].title;
             // 更新所有 data-i18n 元素
             document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -370,19 +403,25 @@
                     el.innerText = i18n[lang][key];
                 }
             });
-            // 更新六面卡片上的名称
+            // 更新下拉框中的选项 (data-i18n-option)
+            document.querySelectorAll('[data-i18n-option]').forEach(el => {
+                const key = el.getAttribute('data-i18n-option');
+                if (i18n[lang][key]) {
+                    el.innerText = i18n[lang][key];
+                }
+            });
+            // 更新六面卡片名称
             document.querySelectorAll('.face-card .face-name').forEach((el, index) => {
                 if (el && index < 6) {
                     el.innerText = i18n[lang].faceNames[index];
                 }
             });
-            // 更新上传/恢复按钮文本 (它们也有 data-i18n 属性，已在上面循环中更新)
             // 切换按钮激活样式
             document.getElementById('langZhBtn').classList.toggle('active', lang === 'zh');
             document.getElementById('langEnBtn').classList.toggle('active', lang === 'en');
         }
 
-        // --- 初始化场景 (同之前) ---
+        // --- 初始化场景 ---
         const canvas = document.getElementById('threeCanvas');
         const renderer = new THREE.WebGLRenderer({ 
             canvas, 
@@ -401,7 +440,6 @@
         camera.position.set(2.5, 1.8, 3.5);
         camera.lookAt(0, 0, 0);
 
-        // 灯光
         const ambient = new THREE.AmbientLight(0x40486a);
         scene.add(ambient);
         const light1 = new THREE.PointLight(0xffeedd, 1.2);
@@ -467,7 +505,6 @@
         }
         animate();
 
-        // 窗口自适应
         window.addEventListener('resize', () => {
             const w = canvas.clientWidth;
             const h = canvas.clientHeight;
@@ -475,6 +512,117 @@
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
         });
+
+        // --- 纹理模式相关 ---
+        const textureModeSelect = document.getElementById('textureModeSelect');
+        // 获取当前模式
+        function getCurrentTextureMode() {
+            return textureModeSelect.value;
+        }
+
+        // 保存每个面的原始图片数据URL (用于模式切换时重新生成)
+        const faceOriginalDataURLs = Array(6).fill(null);
+
+        // 根据模式生成Canvas纹理 (固定尺寸 512x512)
+        function generateTextureFromImage(dataURL, mode) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const size = 512; // 纹理尺寸
+                    canvas.width = size;
+                    canvas.height = size;
+
+                    // 清空画布 (透明)
+                    ctx.clearRect(0, 0, size, size);
+
+                    const imgW = img.width;
+                    const imgH = img.height;
+                    const imgAspect = imgW / imgH;
+
+                    switch (mode) {
+                        case 'stretch':
+                            // 拉伸填满整个画布
+                            ctx.drawImage(img, 0, 0, size, size);
+                            break;
+                        case 'fit':
+                            // 保持宽高比，完整显示 (contain)
+                            if (imgAspect > 1) { // 宽>高
+                                const drawH = size / imgAspect;
+                                const drawY = (size - drawH) / 2;
+                                ctx.drawImage(img, 0, drawY, size, drawH);
+                            } else {
+                                const drawW = size * imgAspect;
+                                const drawX = (size - drawW) / 2;
+                                ctx.drawImage(img, drawX, 0, drawW, size);
+                            }
+                            break;
+                        case 'cover':
+                            // 保持宽高比，填满画布 (cover)
+                            if (imgAspect > 1) { // 宽>高
+                                const drawW = size * imgAspect;
+                                const drawX = (size - drawW) / 2;
+                                ctx.drawImage(img, drawX, 0, drawW, size);
+                            } else {
+                                const drawH = size / imgAspect;
+                                const drawY = (size - drawH) / 2;
+                                ctx.drawImage(img, 0, drawY, size, drawH);
+                            }
+                            break;
+                        case 'none':
+                            // 无操作：不缩放，居中显示，保留原始像素尺寸
+                            // 如果图片大于画布，则只显示中心区域；如果小于画布，则居中留白
+                            const scale = 1; // 不缩放
+                            const drawW = imgW;
+                            const drawH = imgH;
+                            let dx = (size - drawW) / 2;
+                            let dy = (size - drawH) / 2;
+                            // 如果图片大于画布，需要裁剪，但我们使用源裁剪参数
+                            if (imgW > size || imgH > size) {
+                                // 计算源裁剪区域 (从图片中心取与画布等大的区域)
+                                const sx = (imgW - size) / 2;
+                                const sy = (imgH - size) / 2;
+                                const sWidth = Math.min(size, imgW);
+                                const sHeight = Math.min(size, imgH);
+                                ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, size, size);
+                            } else {
+                                // 图片小于画布，直接绘制到中心
+                                ctx.drawImage(img, dx, dy, drawW, drawH);
+                            }
+                            break;
+                        default:
+                            ctx.drawImage(img, 0, 0, size, size);
+                    }
+
+                    // 生成纹理
+                    const texture = new THREE.CanvasTexture(canvas);
+                    texture.colorSpace = THREE.SRGBColorSpace;
+                    resolve(texture);
+                };
+                img.onerror = reject;
+                img.src = dataURL;
+            });
+        }
+
+        // 将纹理应用到指定面
+        async function applyTextureToFace(faceIndex, dataURL, mode) {
+            try {
+                const texture = await generateTextureFromImage(dataURL, mode);
+                materials[faceIndex].map = texture;
+                materials[faceIndex].color.setHex(0xffffff); // 纹理覆盖颜色
+                materials[faceIndex].needsUpdate = true;
+                // 更新预览图 (预览图还是用原始图片，保持原样)
+                const previewImg = previewImgs[faceIndex];
+                previewImg.src = dataURL; // 预览仍显示原图，不经过canvas处理，以便用户看到原图
+                previewImg.style.display = 'block';
+                const previewDiv = previewImg.parentElement;
+                previewDiv.style.background = 'transparent';
+            } catch (err) {
+                console.error('纹理生成失败', err);
+            }
+        }
 
         // --- 构建六面UI ---
         const facePanel = document.getElementById('facePanel');
@@ -490,7 +638,7 @@
             labelDiv.style.background = '#202d51';
             labelDiv.style.borderRadius = '20px';
             labelDiv.style.padding = '4px';
-            labelDiv.className = 'face-name'; // 用于更新名称
+            labelDiv.className = 'face-name';
             labelDiv.innerText = i18n[currentLang].faceNames[i];
             card.appendChild(labelDiv);
 
@@ -523,69 +671,82 @@
             document.body.appendChild(fileInput);
             fileInputs.push(fileInput);
 
+            // 上传按钮触发
             uploadBtn.addEventListener('click', () => fileInput.click());
 
-            fileInput.addEventListener('change', (e) => {
+            // 文件选择处理
+            fileInput.addEventListener('change', async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (ev) => {
+                reader.onload = async (ev) => {
                     const dataUrl = ev.target.result;
+                    // 保存原始数据
+                    faceOriginalDataURLs[i] = dataUrl;
+                    // 根据当前模式应用纹理
+                    const mode = getCurrentTextureMode();
+                    await applyTextureToFace(i, dataUrl, mode);
+                    // 预览图显示原始图片（不经过canvas处理，让用户看到原图）
                     previewImg.src = dataUrl;
                     previewImg.style.display = 'block';
                     previewDiv.style.background = 'transparent';
-                    const texLoader = new THREE.TextureLoader();
-                    texLoader.load(dataUrl, (tex) => {
-                        tex.colorSpace = THREE.SRGBColorSpace;
-                        materials[i].map = tex;
-                        materials[i].color.setHex(0xffffff);
-                        materials[i].needsUpdate = true;
-                    });
                 };
                 reader.readAsDataURL(file);
-                fileInput.value = '';
+                fileInput.value = ''; // 允许重新上传同一文件
             });
 
+            // 清除
             clearBtn.addEventListener('click', () => {
                 materials[i].map = null;
                 materials[i].color.setHex(initColors[i]);
                 previewImg.src = '';
                 previewImg.style.display = 'none';
                 previewDiv.style.background = '#' + initColors[i].toString(16).padStart(6, '0');
+                faceOriginalDataURLs[i] = null; // 清除原始数据
             });
         }
 
-        // 一键替换所有面
+        // --- 一键替换所有面 ---
         document.getElementById('oneClickUploadBtn').addEventListener('click', () => {
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'image/*';
-            input.onchange = (e) => {
+            input.onchange = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
                 const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     const dataUrl = event.target.result;
-                    const texLoader = new THREE.TextureLoader();
-                    texLoader.load(dataUrl, (tex) => {
-                        tex.colorSpace = THREE.SRGBColorSpace;
-                        for (let i = 0; i < 6; i++) {
-                            materials[i].map = tex;
-                            materials[i].color.setHex(0xffffff);
-                            materials[i].needsUpdate = true;
-                            previewImgs[i].src = dataUrl;
-                            previewImgs[i].style.display = 'block';
-                            const previewDiv = previewImgs[i].parentElement;
-                            previewDiv.style.background = 'transparent';
-                        }
-                    });
+                    const mode = getCurrentTextureMode();
+                    // 为每个面应用纹理
+                    for (let i = 0; i < 6; i++) {
+                        faceOriginalDataURLs[i] = dataUrl; // 所有面使用同一原始图
+                        await applyTextureToFace(i, dataUrl, mode);
+                        // 预览更新
+                        previewImgs[i].src = dataUrl;
+                        previewImgs[i].style.display = 'block';
+                        const previewDiv = previewImgs[i].parentElement;
+                        previewDiv.style.background = 'transparent';
+                    }
                 };
                 reader.readAsDataURL(file);
             };
             input.click();
         });
 
-        // --- 录制函数 ---
+        // --- 模式切换时重新处理所有已应用纹理的面 ---
+        textureModeSelect.addEventListener('change', async () => {
+            const newMode = getCurrentTextureMode();
+            // 遍历所有面，如果有原始数据，重新应用
+            for (let i = 0; i < 6; i++) {
+                if (faceOriginalDataURLs[i]) {
+                    await applyTextureToFace(i, faceOriginalDataURLs[i], newMode);
+                    // 预览不变（预览始终显示原图）
+                }
+            }
+        });
+
+        // --- 录制函数 (同之前) ---
         function getRecorderOptions() {
             const fps = parseInt(document.getElementById('fpsInput').value, 10) || 24;
             const duration = parseFloat(document.getElementById('durationInput').value) || 5;
@@ -664,7 +825,6 @@
             });
         }
 
-        // 绑定录制按钮
         document.getElementById('recordWebmBtn').addEventListener('click', () => startRecording('video/webm;codecs=vp9', 'webm'));
         document.getElementById('recordMp4Btn').addEventListener('click', () => startRecording('video/webm;codecs=vp9', 'mp4'));
         document.getElementById('recordGifBtn').addEventListener('click', startGifRecording);
@@ -673,7 +833,7 @@
         document.getElementById('langZhBtn').addEventListener('click', () => setLanguage('zh'));
         document.getElementById('langEnBtn').addEventListener('click', () => setLanguage('en'));
 
-        // --- IP检测：判断是否在中国，自动切换为中文，否则英文 ---
+        // --- IP检测 ---
         fetch('https://ipapi.co/json/')
             .then(res => res.json())
             .then(data => {
@@ -684,7 +844,6 @@
                 }
             })
             .catch(() => {
-                // 降级：根据浏览器语言
                 const browserLang = navigator.language || navigator.userLanguage;
                 setLanguage(browserLang.startsWith('zh') ? 'zh' : 'en');
             });
