@@ -1,6 +1,7 @@
 {
   "name": "3d-rotation",
   "version": "1.0.0",
+  "type": "module",
   "description": "3D cube with ConvertHub GIF conversion",
   "main": "index.js",
   "scripts": {
@@ -8,7 +9,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",     // ← 已修正为 MIT
   "dependencies": {
     "busboy": "^1.6.0"
   }
