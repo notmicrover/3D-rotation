@@ -1,4 +1,5 @@
 import Busboy from 'busboy';
+import { Readable } from 'stream';
 
 export const config = {
   api: {
@@ -11,7 +12,6 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // 从请求头获取用户传入的 API Key
   const apiKey = req.headers['x-api-key'];
   if (!apiKey) {
     return res.status(400).json({ error: 'Missing API Key' });
@@ -25,12 +25,16 @@ export default async function handler(req, res) {
       file.on('data', data => chunks.push(data));
       file.on('end', () => {
         fileBuffer = Buffer.concat(chunks);
-        resolve();
+        // 不在这里 resolve
       });
       file.on('error', reject);
     });
     busboy.on('finish', () => {
-      if (!fileBuffer) reject(new Error('No file uploaded'));
+      if (!fileBuffer) {
+        reject(new Error('No file uploaded'));
+      } else {
+        resolve();
+      }
     });
   });
 
@@ -66,7 +70,8 @@ export default async function handler(req, res) {
     }
 
     res.setHeader('Content-Type', 'image/gif');
-    convertRes.body.pipe(res);
+    // 将 Web ReadableStream 转换为 Node 流并 pipe
+    Readable.fromWeb(convertRes.body).pipe(res);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
